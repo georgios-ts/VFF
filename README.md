@@ -1,2 +1,2 @@
 # VFF
-Variational Fast Forwarding for Quantum SImulation (Qiskit Europe Hackathon 2021)
+Variational Fast Forwarding algorithm for Quantum Simulation (Qiskit Europe Hackathon 2021)
