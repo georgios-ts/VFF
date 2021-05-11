@@ -49,9 +49,10 @@ def possible_pair(type,interaction,n_spins):
     return List
 
 
-def feature_map_ansatz(parameter,n_spins,n_layer,entanglement_type='full', interaction_length=2, full_rotation='False'):
+def feature_map_ansatz(parameter,n_spins,n_layer,entanglement_type='full', interaction_length=2, full_rotation=False,circular_symmetry=False):
     '''ansatz composed of y rotation followed by a trainable feature map
     len(parameter)=[(1+2*full_rotation)*n_spins+len(int_list)]*n_layer
+    if circular symmetry, the same paramters is used in each layers for all qubit, so len(parameter)=n_layer
     '''
 	int_list=possible_pair(entanglement_type,interaction_length,n_spins)
 	count = 0
@@ -61,19 +62,54 @@ def feature_map_ansatz(parameter,n_spins,n_layer,entanglement_type='full', inter
         #y-rotation
         for j in range(n_spins):
             circuit.ry(parameter[count],j)
-            count = count +1
+            if not circular_symmetry:
+                count = count +1
             if full_rotation:
                 circuit.rx(parameter[count],j)
-                count = count +1
+                if not circular_symmetry:
+                    count = count +1
                 circuit.ry(parameter[count],j)
-                count = count +1
+                if not circular_symmetry:
+                    count = count +1
 
         #trainable feature map
         for interaction in int_list:
             for j in range(len(interaction_length)-1):
                 circuit.cx(interaction[j],interaction[j+1]%n_spins)
-                circuit.rz(parameter[count],interaction[-1]%n_spins)
-                count += 1
+            circuit.rz(parameter[count],interaction[-1]%n_spins)
+            if not circular_symmetry:
+                count = count +1
             for j in reversed(range(len(interaction)-1)):
                 circuit.cx(interaction[j],interaction[j+1]%n_spins)
+        if circular_symmetry:
+            count = count+1
+    return circuit
+
+def diagonal_ansatz(parameter,n_spins,interaction_length=2,diag=True):
+    '''diagonal ansatz for D
+    diag: len(parameter)=2^n_spins
+    Walsh: len(parameter)=n_spins + sum(len(int_list(full,l)), for l =1,...,interatction_length-1)
+    '''
+
+	circuit = QuantumCircuit(n_spins)
+    if diag:
+        #qiskit diagonal implementation
+        circuit.Diagonal(parameter)
+    else:
+        #Walsh Serie
+        for i in range(1,interaction_length):
+            if i == 1:
+                for j in range(n_spins):
+                    circuit.rz(parameter[count],j)
+                    count +=1
+            if i>1:
+                int_list=possible_pair(entanglement_type='full',interaction_length=i-1,n_spins=n_spins)
+                for interaction in int_list:
+                    for j in range(len(interaction_length)-1):
+                        circuit.cx(interaction[j],interaction[j+1]%n_spins)
+                    circuit.rz(parameter[count],interaction[-1]%n_spins)
+                    count = count +1
+                    for j in reversed(range(len(interaction)-1)):
+                        circuit.cx(interaction[j],interaction[j+1]%n_spins)
+
     return circuit
